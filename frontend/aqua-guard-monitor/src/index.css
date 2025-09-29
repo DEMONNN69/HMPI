@@ -1,0 +1,177 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* AQUA-GUARD Professional Design System */
+
+@layer base {
+  :root {
+    /* Sophisticated neutral palette */
+    --background: 216 12% 97%;
+    --foreground: 214 31% 17%;
+
+    /* Premium card styling */
+    --card: 0 0% 100%;
+    --card-foreground: 214 31% 17%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 214 31% 17%;
+
+    /* Professional primary palette */
+    --primary: 197 37% 24%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 197 37% 42%;
+    --primary-soft: 197 16% 88%;
+
+    /* Refined secondary */
+    --secondary: 214 12% 95%;
+    --secondary-foreground: 214 31% 17%;
+
+    /* Scientific status indicators */
+    --excellent: 142 71% 45%;
+    --good: 212 100% 47%;
+    --poor: 38 92% 50%;
+    --very-poor: 0 84% 60%;
+
+    /* Professional neutrals */
+    --muted: 214 12% 95%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 216 12% 84%;
+    --accent-foreground: 214 31% 17%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 12% 90%;
+    --input: 214 12% 95%;
+    --ring: 197 37% 24%;
+
+    /* Subtle professional effects */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-professional: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+
+    /* Refined spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Professional dark theme */
+    --background: 222 47% 11%;
+    --foreground: 213 31% 91%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 213 31% 91%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 213 31% 91%;
+
+    --primary: 197 71% 73%;
+    --primary-foreground: 222 47% 11%;
+    --primary-light: 197 71% 83%;
+    --primary-soft: 197 37% 24%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 213 31% 91%;
+
+    --excellent: 142 71% 65%;
+    --good: 212 100% 67%;
+    --poor: 38 92% 70%;
+    --very-poor: 0 84% 70%;
+
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 17%;
+    --accent-foreground: 213 31% 91%;
+
+    --destructive: 0 84% 70%;
+    --destructive-foreground: 213 31% 91%;
+
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 197 71% 73%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Professional typography scale */
+  .text-display {
+    @apply text-3xl font-semibold tracking-tight;
+  }
+  
+  .text-heading {
+    @apply text-xl font-semibold tracking-tight;
+  }
+  
+  .text-subheading {
+    @apply text-base font-medium;
+  }
+  
+  .text-body {
+    @apply text-sm;
+  }
+  
+  .text-caption {
+    @apply text-xs text-muted-foreground;
+  }
+
+  /* Professional component styles */
+  .card-professional {
+    @apply bg-card border border-border rounded-lg shadow-sm;
+  }
+
+  .button-professional {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors;
+  }
+
+  /* Data visualization enhancements */
+  .stat-value {
+    @apply font-mono text-2xl font-semibold tracking-tight;
+  }
+
+  .metric-label {
+    @apply text-xs font-medium text-muted-foreground uppercase tracking-wide;
+  }
+}
