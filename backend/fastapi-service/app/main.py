@@ -1,7 +1,7 @@
 # app/main.py
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import data_processing, calculations, reports
+from .routers import  calculations, reports, ingestion
 import uvicorn
 
 app = FastAPI(
@@ -13,16 +13,24 @@ app = FastAPI(
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8000", "http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:8000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Include routers
-app.include_router(data_processing.router, prefix="/api/v1/data", tags=["data"])
 app.include_router(calculations.router, prefix="/api/v1/calculations", tags=["calculations"])
 app.include_router(reports.router, prefix="/api/v1/reports", tags=["reports"])
+app.include_router(ingestion.router, prefix="/api/v1/ingestion", tags=["ingestion"])
 
 @app.get("/")
 async def root():

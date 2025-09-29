@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'samples',
     'monitoring_sites',
     'user_management',
+    'data_management',
 ]
 
 MIDDLEWARE = [

@@ -24,7 +24,7 @@ interface FileUploadProps {
 
 export function FileUpload({ 
   onUploadComplete,
-  acceptedFileTypes = ['.csv', '.xlsx', '.xls'],
+  acceptedFileTypes = ['.pdf'],
   maxFileSize = 25 * 1024 * 1024 // 25MB
 }: FileUploadProps) {
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -58,29 +58,40 @@ export function FileUpload({
         });
       }, 150);
 
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 2500));
-      
+      // Call FastAPI ingestion endpoint
+      const base = import.meta.env.VITE_FASTAPI_BASE ?? 'http://localhost:8001';
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      const url = `${base}/api/v1/ingestion/convert_and_ingest_async`;
+      const res = await fetch(url, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      // Professional mock response
-      const mockResult = {
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Ingestion failed');
+      }
+      const data = await res.json();
+      const result = {
         success: true,
-        message: `Dataset integration complete`,
+        message: data.message,
         data: {
-          recordsProcessed: 2847,
-          validRecords: 2819,
-          invalidRecords: 28,
+          recordsProcessed: data.records_processed ?? data.recordsProcessed ?? 0,
+          validRecords: data.new_records_created ?? data.newRecordsCreated ?? 0,
+          invalidRecords: 0,
           filename: file.name,
           uploadDate: new Date().toISOString(),
-          processingTime: "2.3s",
-          dataQuality: "98.02%"
+          processingTime: "",
+          dataQuality: ""
         }
       };
-
-      setUploadResult(mockResult);
-      onUploadComplete?.(mockResult);
+      setUploadResult(result);
+      onUploadComplete?.(result);
 
     } catch (error) {
       setUploadResult({
@@ -94,11 +105,7 @@ export function FileUpload({
 
   const { getRootProps, getInputProps, isDragActive, fileRejections } = useDropzone({
     onDrop,
-    accept: {
-      'text/csv': ['.csv'],
-      'application/vnd.ms-excel': ['.xls'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
-    },
+    accept: { 'application/pdf': ['.pdf'] },
     maxSize: maxFileSize,
     multiple: false
   });
