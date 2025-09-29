@@ -1,0 +1,174 @@
+{
+  "backend/fastapi-service/app/routers/reports.py": {
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "from fastapi import APIRouter, HTTPException, Query",
+      "from typing import Optional",
+      "from datetime import datetime, timedelta",
+      "from ..services.django_client import get_from_django"
+    ]
+  },
+  "backend/fastapi-service/app/routers/data_processing.py": {
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "from fastapi import APIRouter, UploadFile, File, HTTPException",
+      "import pandas as pd",
+      "import io",
+      "from ..services.hmpi_calculator import calculate_hmpi_batch",
+      "from ..services.django_client import send_to_django"
+    ]
+  },
+  "backend/fastapi-service/app/routers/calculations.py": {
+    "classes": ["SampleData", "BatchCalculationRequest"],
+    "functions": [],
+    "imports": [
+      "from fastapi import APIRouter, HTTPException",
+      "from pydantic import BaseModel",
+      "from typing import List",
+      "from ..services.hmpi_calculator import calculate_hpi, calculate_hei, categorize_quality"
+    ]
+  },
+  "backend/fastapi-service/app/main.py": {
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "from fastapi import FastAPI, HTTPException",
+      "from fastapi.middleware.cors import CORSMiddleware",
+      "from .routers import data_processing, calculations, reports",
+      "import uvicorn"
+    ]
+  },
+  "backend/fastapi-service/app/services/django_client.py": {
+    "classes": [],
+    "functions": [],
+    "imports": ["import requests", "import asyncio", "from typing import List, Dict"]
+  },
+  "backend/fastapi-service/app/services/hmpi_calculator.py": {
+    "classes": [],
+    "functions": ["calculate_hpi", "calculate_hei", "categorize_quality", "calculate_hmpi_batch"],
+    "imports": ["import pandas as pd", "import numpy as np"]
+  },
+  "backend/django-service/aquaguard_django/urls.py": {
+    "classes": [],
+    "functions": [],
+    "imports": [
+      "from django.contrib import admin",
+      "from django.urls import path, include",
+      "from django.conf import settings",
+      "from django.conf.urls.static import static",
+      "from rest_framework_simplejwt.views import ("
+    ]
+  },
+  "backend/django-service/authentication/urls.py": {
+    "classes": [],
+    "functions": [],
+    "imports": ["from django.urls import path", "from . import views"]
+  },
+  "backend/django-service/authentication/views.py": {
+    "classes": [],
+    "functions": ["register", "logout"],
+    "imports": [
+      "from rest_framework import status",
+      "from rest_framework.decorators import api_view, permission_classes",
+      "from rest_framework.permissions import AllowAny",
+      "from rest_framework.response import Response",
+      "from django.contrib.auth.models import User",
+      "from django.contrib.auth import authenticate",
+      "from rest_framework_simplejwt.tokens import RefreshToken",
+      "from user_management.models import UserProfile",
+      "import json"
+    ]
+  },
+  "backend/django-service/user_management/urls.py": {
+    "classes": [],
+    "functions": [],
+    "imports": ["from django.urls import path, include", "from rest_framework.routers import DefaultRouter", "from . import views"]
+  },
+  "backend/django-service/user_management/views.py": {
+    "classes": ["UserViewSet", "UserProfileViewSet"],
+    "functions": ["me", "my_profile"],
+    "imports": [
+      "from rest_framework import viewsets, status",
+      "from rest_framework.decorators import action",
+      "from rest_framework.response import Response",
+      "from django.contrib.auth.models import User",
+      "from .models import UserProfile",
+      "from .serializers import UserSerializer, UserProfileSerializer"
+    ]
+  },
+  "backend/django-service/user_management/serializers.py": {
+    "classes": ["UserSerializer", "UserProfileSerializer"],
+    "functions": [],
+    "imports": ["from rest_framework import serializers", "from django.contrib.auth.models import User", "from .models import UserProfile"]
+  },
+  "backend/django-service/user_management/models.py": {
+    "classes": ["UserProfile"],
+    "functions": ["__str__"],
+    "imports": ["from django.db import models", "from django.contrib.auth.models import User"]
+  },
+  "backend/django-service/monitoring_sites/urls.py": {
+    "classes": [],
+    "functions": [],
+    "imports": ["from django.urls import path, include", "from rest_framework.routers import DefaultRouter", "from . import views"]
+  },
+  "backend/django-service/monitoring_sites/serializers.py": {
+    "classes": ["MonitoringSiteSerializer"],
+    "functions": [],
+    "imports": ["from rest_framework import serializers", "from .models import MonitoringSite"]
+  },
+  "backend/django-service/monitoring_sites/views.py": {
+    "classes": ["MonitoringSiteViewSet"],
+    "functions": ["perform_create", "active_sites"],
+    "imports": [
+      "from rest_framework import viewsets",
+      "from rest_framework.decorators import action",
+      "from rest_framework.response import Response",
+      "from .models import MonitoringSite",
+      "from .serializers import MonitoringSiteSerializer"
+    ]
+  },
+  "backend/django-service/monitoring_sites/models.py": {
+    "classes": ["MonitoringSite"],
+    "functions": ["__str__"],
+    "imports": ["from django.db import models", "from django.contrib.auth.models import User"]
+  },
+  "backend/django-service/samples/models.py": {
+    "classes": ["WaterSample", "ComputedIndex"],
+    "functions": ["__str__", "__str__"],
+    "imports": ["from django.db import models", "from django.contrib.auth.models import User"]
+  },
+  "backend/django-service/samples/serializers.py": {
+    "classes": ["WaterSampleSerializer", "ComputedIndexSerializer"],
+    "functions": ["get_computed_index"],
+    "imports": ["from rest_framework import serializers", "from .models import WaterSample, ComputedIndex"]
+  },
+  "backend/django-service/samples/views.py": {
+    "classes": ["WaterSampleViewSet"],
+    "functions": ["perform_create", "summary_stats"],
+    "imports": [
+      "from rest_framework import viewsets, status",
+      "from rest_framework.decorators import action",
+      "from rest_framework.response import Response",
+      "from .models import WaterSample, ComputedIndex",
+      "from .serializers import WaterSampleSerializer, ComputedIndexSerializer"
+    ]
+  },
+  "backend/django-service/samples/urls.py": {
+    "classes": [],
+    "functions": [],
+    "imports": ["from django.urls import path, include", "from rest_framework.routers import DefaultRouter", "from . import views"]
+  },
+  "backend/django-service/aquaguard_django/settings.py": {
+    "classes": [],
+    "functions": [],
+    "imports": ["import os", "from decouple import config", "from datetime import timedelta", "from pathlib import Path"]
+  },
+  "backend/django-service/manage.py": {
+    "classes": [],
+    "functions": ["main"],
+    "imports": ["import os", "import sys", "from django.core.management import execute_from_command_line"]
+  }
+}
+
