@@ -1,5 +1,10 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { login as apiLogin, refreshToken, logout as apiLogout, Tokens } from "./auth";
+// FIX: Use a wildcard import to prevent module resolution conflicts 
+// and reference all functions via the 'auth' namespace.
+import * as auth from "./auth"; 
+// FIX: Use 'import type' for the Tokens type definition to prevent bundler conflict
+import type { Tokens } from "./auth"; 
+// Note: Tokens must still be imported directly if used as a type outside the namespace.
 
 type AuthContextValue = {
   tokens: Tokens | null;
@@ -29,7 +34,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!tokens?.refresh) return;
     const id = setInterval(async () => {
       try {
-        const res = await refreshToken(tokens.refresh);
+        // FIX: Access refreshToken via the 'auth' namespace
+        const res = await auth.refreshToken(tokens.refresh);
         setTokens((prev) => (prev ? { ...prev, access: res.access } : prev));
       } catch (_) {
         setTokens(null);
@@ -42,12 +48,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     tokens,
     isAuthenticated: Boolean(tokens?.access),
     async login(username: string, password: string) {
-      const t = await apiLogin(username, password);
+      // FIX: Access login via the 'auth' namespace
+      const t = await auth.login(username, password); 
       setTokens(t);
     },
     async logout() {
       if (tokens?.refresh) {
-        try { await apiLogout(tokens.refresh); } catch {}
+        // FIX: Access logout via the 'auth' namespace
+        try { await auth.logout(tokens.refresh); } catch {}
       }
       setTokens(null);
     },
@@ -61,5 +69,3 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
-
-

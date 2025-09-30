@@ -1,9 +1,6 @@
 from django.apps import AppConfig
 
 
-class DataManagementConfig(AppConfig):
+class CalculationsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'data_management'
-
-
-
+    name = 'calculations'

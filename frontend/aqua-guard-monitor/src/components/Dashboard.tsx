@@ -5,6 +5,7 @@ import { StatsCard } from "@/components/StatsCard";
 import { QualityDistributionChart, HPIBarChart, HPITrendChart } from "@/components/charts/PollutionCharts";
 import { PollutionMap } from "@/components/PollutionMap";
 import { FileUpload } from "@/components/FileUpload";
+import { Link } from "react-router-dom";
 import { 
   Droplets, 
   TrendingUp, 
@@ -15,7 +16,8 @@ import {
   Download,
   Settings,
   Bell,
-  Activity
+  Activity,
+  Database
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -122,6 +124,18 @@ export function Dashboard() {
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                 Sync
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-sm"
+                asChild
+              >
+                <Link to="/ground-water-samples">
+                  <Database className="h-4 w-4 mr-2" />
+                  Water Samples
+                </Link>
               </Button>
 
               <Button
