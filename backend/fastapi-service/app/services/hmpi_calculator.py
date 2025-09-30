@@ -13,6 +13,7 @@ class HPICalculator:
             'iron': 0.3,           # mg/L (WHO)
             'zinc': 3.0,           # mg/L (WHO)
             'copper': 2.0,         # mg/L (WHO)
+            'uranium': 0.03,       # mg/L (WHO)
         }
         
         # Ideal values (usually 0 for most metals)
@@ -25,6 +26,7 @@ class HPICalculator:
             'iron': 0,
             'zinc': 0,
             'copper': 0,
+            'uranium': 0,
         }
     
     def calculate_hpi(self, sample_data: Dict) -> float:
@@ -111,3 +113,7 @@ class HPICalculator:
             return "poor"
         else:
             return "very_poor"
+    
+    def classify_water_quality(self, hpi_value: float) -> str:
+        """Alias for categorize_water_quality - classify water quality based on HPI value"""
+        return self.categorize_water_quality(hpi_value)

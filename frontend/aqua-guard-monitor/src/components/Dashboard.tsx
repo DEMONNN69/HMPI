@@ -139,6 +139,18 @@ export function Dashboard() {
               </Button>
 
               <Button
+                variant="outline"
+                size="sm"
+                className="text-sm"
+                asChild
+              >
+                <Link to="/hmpi-calculations">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  HMPI Calculator
+                </Link>
+              </Button>
+
+              <Button
                 variant="ghost"
                 size="sm"
                 className="text-sm"

@@ -1,10 +1,12 @@
 import requests
 import uuid
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from rest_framework import viewsets, mixins, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import serializers
+from rest_framework.permissions import AllowAny
 from .models import ComputedIndex, CalculationBatch
 
 # Simple inline serializers
@@ -284,6 +286,184 @@ class ComputedIndexViewSet(
     def _generate_batch_id(self):
         """Generate unique batch ID"""
         return str(uuid.uuid4())[:8]
+
+    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+    def bulk_create(self, request):
+        """
+        Bulk create computed indices from FastAPI results
+        
+        Request body:
+        {
+            "results": [
+                {
+                    "sample_pk": 123,
+                    "sample_type": "ground_water",
+                    "hpi_value": 45.2,
+                    "hei_value": 32.1,
+                    "cd_value": 2.1,
+                    "mi_value": 1.8,
+                    "quality_category": "good",
+                    "calculation_method": "WHO_2011",
+                    "calculation_year": 2023,
+                    "location_name": "Sample Location",
+                    "latitude": 12.345,
+                    "longitude": 67.890,
+                    "state": "State Name",
+                    "district": "District Name",
+                    "notes": "Bulk calculation"
+                }
+            ]
+        }
+        """
+        from django.db import transaction
+        
+        results = request.data.get('results', [])
+        if not results:
+            return Response({'error': 'No results provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            with transaction.atomic():
+                created_instances = []
+                
+                for result_data in results:
+                    sample_pk = result_data.get('sample_pk')
+                    sample_type = result_data.get('sample_type', 'ground_water')
+                    
+                    if not sample_pk:
+                        continue
+                    
+                    # Get content type
+                    if sample_type == 'ground_water':
+                        content_type = ContentType.objects.get_for_model(GroundWaterSample)
+                    else:
+                        content_type = ContentType.objects.get_for_model(WaterSample)
+                    
+                    # Create ComputedIndex instance
+                    instance_data = {
+                        'content_type': content_type,
+                        'object_id': sample_pk,
+                        'hpi_value': result_data.get('hpi_value'),
+                        'hei_value': result_data.get('hei_value'),
+                        'cd_value': result_data.get('cd_value'),
+                        'mi_value': result_data.get('mi_value'),
+                        'quality_category': result_data.get('quality_category'),
+                        'calculation_method': result_data.get('calculation_method', 'WHO_2011'),
+                        'computed_by': 'FastAPI_HPICalculator_Bulk',
+                        'notes': result_data.get('notes', ''),
+                        'calculation_year': result_data.get('calculation_year'),
+                        'location_name': result_data.get('location_name'),
+                        'latitude': result_data.get('latitude'),
+                        'longitude': result_data.get('longitude'),
+                        'state': result_data.get('state'),
+                        'district': result_data.get('district')
+                    }
+                    
+                    created_instances.append(ComputedIndex(**instance_data))
+                
+                # Bulk create all instances
+                ComputedIndex.objects.bulk_create(created_instances, ignore_conflicts=True)
+                
+                return Response({
+                    'status': 'success',
+                    'created': len(created_instances),
+                    'message': f'Successfully created {len(created_instances)} computed indices'
+                }, status=status.HTTP_201_CREATED)
+                
+        except Exception as e:
+            return Response({
+                'error': f'Bulk creation failed: {str(e)}'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=['post'])
+    def calculate_by_year(self, request):
+        """
+        Calculate HMPI indices for all samples from a specific year.
+        
+        Request body:
+        {
+            "year": 2023,
+            "sample_type": "water_sample" or "ground_water",
+            "force_recalculate": false
+        }
+        """
+        year = request.data.get('year')
+        sample_type = request.data.get('sample_type', 'water_sample')
+        force_recalculate = request.data.get('force_recalculate', False)
+        
+        if not year:
+            return Response({'error': 'year is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Call FastAPI to calculate for the entire year
+            fastapi_url = f"{settings.FASTAPI_BASE_URL}/api/v1/calculations/calculate-by-year"
+            payload = {
+                "year": year,
+                "sample_type": sample_type,
+                "force_recalculate": force_recalculate
+            }
+            
+            response = requests.post(fastapi_url, json=payload)
+            
+            if response.status_code == 200:
+                calculation_data = response.json()
+                
+                # Prepare bulk data for storage
+                bulk_results = []
+                for calc_result in calculation_data.get('calculated_indices', []):
+                    try:
+                        # Add sample_type and calculation_year to each result
+                        calc_result['sample_type'] = sample_type
+                        calc_result['calculation_year'] = year
+                        bulk_results.append(calc_result)
+                    except Exception as e:
+                        print(f"Error preparing result for bulk storage: {e}")
+                
+                # Use bulk_create endpoint for efficient storage
+                if bulk_results:
+                    try:
+                        bulk_response = requests.post(
+                            f"http://localhost:8000/api/v1/computed-indices/bulk_create/",
+                            json={'results': bulk_results},
+                            headers={"Content-Type": "application/json"}
+                        )
+                        
+                        if bulk_response.status_code == 201:
+                            bulk_data = bulk_response.json()
+                            stored_count = bulk_data.get('created', 0)
+                            stored_indices = list(range(1, stored_count + 1))  # Placeholder IDs
+                            failed_storage = []
+                        else:
+                            stored_indices = []
+                            failed_storage = [{'error': f'Bulk storage failed: {bulk_response.status_code}'}]
+                    except Exception as e:
+                        stored_indices = []
+                        failed_storage = [{'error': f'Bulk storage error: {str(e)}'}]
+                else:
+                    stored_indices = []
+                    failed_storage = []
+                
+                return Response({
+                    'message': f'Year {year} calculations completed',
+                    'year': year,
+                    'sample_type': sample_type,
+                    'total_calculated': calculation_data.get('total_processed', 0),
+                    'total_stored': len(stored_indices),
+                    'total_failed_calculation': calculation_data.get('total_failed', 0),
+                    'total_failed_storage': len(failed_storage),
+                    'stored_indices': stored_indices,
+                    'failed_calculations': calculation_data.get('failed_calculations', []),
+                    'failed_storage': failed_storage,
+                    'success_rate': calculation_data.get('success_rate', 0)
+                })
+            else:
+                return Response({
+                    'error': f'FastAPI calculation failed: {response.text}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
+        except Exception as e:
+            return Response({
+                'error': f'Year calculation error: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class CalculationBatchViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for viewing calculation batch status"""

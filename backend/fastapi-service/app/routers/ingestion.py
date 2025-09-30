@@ -144,15 +144,30 @@ def _process_pdf_bytes(content: bytes, pages: str = 'all') -> tuple[int, int]:
         # --- Data Cleaning and Alignment ---
         
         # 1. Slice and Rename Columns (assuming 24 columns were extracted)
+        logging.info(f"Raw extracted columns: {list(df.columns)}")
+        logging.info(f"Number of columns extracted: {len(df.columns)}")
+        
+        # Debug: Show first row of raw data before column renaming
+        if len(df) > 0:
+            logging.info(f"Raw first row data: {df.iloc[0].to_dict()}")
+            # Show first few columns to see structure
+            logging.info(f"First 5 columns of first row: {df.iloc[0, :5].to_dict()}")
+            logging.info(f"Columns 5-10 of first row: {df.iloc[0, 5:10].to_dict() if len(df.columns) > 5 else 'N/A'}")
+            logging.info(f"Last 5 columns of first row: {df.iloc[0, -5:].to_dict() if len(df.columns) > 5 else 'N/A'}")
+        
         if len(df.columns) >= len(CORE_DATA_COLUMNS):
             df = df.iloc[:, :len(CORE_DATA_COLUMNS)]
             df.columns = CORE_DATA_COLUMNS
             df = df.iloc[1:].reset_index(drop=True) # Drop the junk header row
         else:
             logging.error(f"Extracted fewer columns ({len(df.columns)}) than expected ({len(CORE_DATA_COLUMNS)}).")
+            # Instead of failing, let's see what we got
+            logging.info(f"Available columns: {list(df.columns)}")
+            logging.info(f"Sample data row: {df.iloc[0].to_dict() if len(df) > 0 else 'No data'}")
             raise HTTPException(status_code=500, detail="Inconsistent column count detected during PDF extraction.")
             
         logging.info(f"FIXED Extraction columns: {list(df.columns)}")
+        logging.info(f"Sample row after column fixing: {df.iloc[0].to_dict() if len(df) > 0 else 'No data'}")
 
         # 2. General cleaning and NaN replacement
         df.dropna(how='all', inplace=True)
@@ -174,7 +189,7 @@ def _process_pdf_bytes(content: bytes, pages: str = 'all') -> tuple[int, int]:
                 if k in rec and rec.get(k) is not None:
                     # Robust cleaning of spaces/commas before conversion
                     val_str = str(rec.get(k)).strip().replace(',', '').replace(' ', '')
-                    if val_str:
+                    if val_str and val_str.lower() not in ['na', 'n/a', 'null', 'none', '-']:
                         val = pd.to_numeric(val_str, errors='coerce') 
                         if pd.notna(val):
                             return float(val) # Return Python float, not NumPy type
@@ -185,6 +200,10 @@ def _process_pdf_bytes(content: bytes, pages: str = 'all') -> tuple[int, int]:
             s_no_val = None
             lon_val = None
             lat_val = None
+            
+            # Debug: Print first few records to see what data we're getting
+            if idx < 3:
+                logging.info(f"Sample record {idx}: {rec}")
             
             try:
                 # --- MANDATORY FIELD VALIDATION ---
@@ -219,24 +238,24 @@ def _process_pdf_bytes(content: bytes, pages: str = 'all') -> tuple[int, int]:
                     latitude=lat_val,
                     year=year_int,
                     
-                    # Core and Heavy Metals
-                    ph=get_numeric(rec, ['pH']),
-                    ec_us_cm=get_numeric(rec, ['EC (µS/cm)']),
-                    co3_mg_l=get_numeric(rec, ['CO3 (mg/L)']),
-                    hco3_mg_l=get_numeric(rec, ['HCO3 (mg/L)']),
-                    cl_mg_l=get_numeric(rec, ['Cl (mg/L)']),
-                    f_mg_l=get_numeric(rec, ['F (mg/L)']),
-                    total_hardness_mg_l=get_numeric(rec, ['Total Hardness (mg/L)']),
-                    so4_mg_l=get_numeric(rec, ['SO4 (mg/L)']),
-                    no3_mg_l=get_numeric(rec, ['NO3 (mg/L)']),
-                    po4_mg_l=get_numeric(rec, ['PO4 (mg/L)']),
-                    ca_mg_l=get_numeric(rec, ['Ca (mg/L)']),
-                    mg_mg_l=get_numeric(rec, ['Mg (mg/L)']),
-                    na_mg_l=get_numeric(rec, ['Na (mg/L)']),
-                    k_mg_l=get_numeric(rec, ['K (mg/L)']),
-                    fe_ppm=get_numeric(rec, ['Fe (ppm)']),
-                    as_ppb=get_numeric(rec, ['As (ppb)']),
-                    u_ppb=get_numeric(rec, ['U (ppb)']),
+                    # Core and Heavy Metals - Using flexible column matching
+                    ph=get_numeric(rec, [find_column(['pH', 'ph', 'PH'])]),
+                    ec_us_cm=get_numeric(rec, [find_column(['EC (µS/cm at 25 °C)', 'EC (µS/cm)', 'EC', 'ec'])]),
+                    co3_mg_l=get_numeric(rec, [find_column(['CO3 (mg/L)', 'CO3', 'co3'])]),
+                    hco3_mg_l=get_numeric(rec, [find_column(['HCO3 (mg/L)', 'HCO3', 'hco3'])]),
+                    cl_mg_l=get_numeric(rec, [find_column(['Cl (mg/L)', 'Cl', 'cl'])]),
+                    f_mg_l=get_numeric(rec, [find_column(['F (mg/L)', 'F', 'f'])]),
+                    total_hardness_mg_l=get_numeric(rec, [find_column(['Total Hardness (mg/L)', 'Total Hardness', 'hardness'])]),
+                    so4_mg_l=get_numeric(rec, [find_column(['SO4 (mg/L)', 'SO4', 'so4'])]),
+                    no3_mg_l=get_numeric(rec, [find_column(['NO3 (mg/L)', 'NO3', 'no3'])]),
+                    po4_mg_l=get_numeric(rec, [find_column(['PO4 (mg/L)', 'PO4', 'po4'])]),
+                    ca_mg_l=get_numeric(rec, [find_column(['Ca (mg/L)', 'Ca', 'ca'])]),
+                    mg_mg_l=get_numeric(rec, [find_column(['Mg (mg/L)', 'Mg', 'mg'])]),
+                    na_mg_l=get_numeric(rec, [find_column(['Na (mg/L)', 'Na', 'na'])]),
+                    k_mg_l=get_numeric(rec, [find_column(['K (mg/L)', 'K', 'k'])]),
+                    fe_ppm=get_numeric(rec, [find_column(['Fe (ppm)', 'Fe', 'fe'])]),
+                    as_ppb=get_numeric(rec, [find_column(['As (ppb)', 'As', 'as'])]),
+                    u_ppb=get_numeric(rec, [find_column(['U (ppb)', 'U', 'u'])]),
                 )
                 samples.append(sample)
             except Exception as e:

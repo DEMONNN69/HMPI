@@ -16,6 +16,14 @@ class ComputedIndex(models.Model):
     object_id = models.PositiveIntegerField()
     sample = GenericForeignKey('content_type', 'object_id')
     
+    # Year and Location data for map visualization
+    calculation_year = models.IntegerField(verbose_name="Calculation Year")
+    location_name = models.CharField(max_length=200, verbose_name="Location Name")
+    state = models.CharField(max_length=100, null=True, blank=True, verbose_name="State")
+    district = models.CharField(max_length=100, null=True, blank=True, verbose_name="District")
+    latitude = models.FloatField(null=True, blank=True, verbose_name="Latitude")
+    longitude = models.FloatField(null=True, blank=True, verbose_name="Longitude")
+    
     # Calculated Index Values
     hpi_value = models.FloatField(verbose_name="Heavy Metal Pollution Index (HPI)")
     hei_value = models.FloatField(null=True, blank=True, verbose_name="Heavy Metal Evaluation Index (HEI)")
@@ -56,7 +64,20 @@ class ComputedIndex(models.Model):
         verbose_name = "Computed Index"
         verbose_name_plural = "Computed Indices"
         ordering = ['-computed_at']
-        unique_together = ['content_type', 'object_id']  # Ensure one calculation per sample
+        unique_together = [
+            ['calculation_year', 'location_name', 'latitude', 'longitude'],  # Prevent duplicate calculations for same year/location
+            ['content_type', 'object_id']  # Ensure one calculation per sample
+        ]
+        indexes = [
+            models.Index(fields=['calculation_year']),
+            models.Index(fields=['location_name']),
+            models.Index(fields=['quality_category']),
+            models.Index(fields=['hpi_value']),
+            models.Index(fields=['computed_at']),
+            models.Index(fields=['calculation_year', 'location_name']),
+            models.Index(fields=['calculation_year', 'quality_category']),
+            models.Index(fields=['state', 'district']),
+        ]
 
 class CalculationBatch(models.Model):
     """
