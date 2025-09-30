@@ -33,7 +33,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'aquaguard_django.settings')
 
 try:
     django.setup()
-    from data_management.models import GroundWaterSample  # type: ignore
+    from data_management.models import GroundWaterSample
     logging.info("Django setup complete.")
 except Exception as e:
     logging.critical(f"FATAL: Django setup failed! Error: {e}")

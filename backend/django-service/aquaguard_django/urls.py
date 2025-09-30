@@ -13,9 +13,10 @@ urlpatterns = [
     path('api/v1/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/v1/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('', include('authentication.urls')),
-    path('', include('samples.urls')),
+    path('', include('data_management.urls')),
     path('', include('monitoring_sites.urls')),
     path('', include('user_management.urls')),
+    path('', include('calculations.urls')),
 ]
 
 # Serve media files in development

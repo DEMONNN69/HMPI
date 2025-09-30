@@ -1,7 +1,7 @@
 # app/main.py
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import data_processing, calculations, reports, ingestion
+from .routers import calculations, reports, ingestion
 import uvicorn
 
 app = FastAPI(
@@ -28,7 +28,6 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(data_processing.router, prefix="/api/v1/data", tags=["data"])
 app.include_router(calculations.router, prefix="/api/v1/calculations", tags=["calculations"])
 app.include_router(reports.router, prefix="/api/v1/reports", tags=["reports"])
 app.include_router(ingestion.router, prefix="/api/v1/ingestion", tags=["ingestion"])
