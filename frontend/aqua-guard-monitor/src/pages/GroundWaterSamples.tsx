@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 // FIX: Using relative imports for robustness
 import { GroundWaterSample, GroundWaterSampleFilters, groundWaterSampleApi } from '../lib/api'; 
 import { GroundWaterSamplesTable } from '../components/GroundWaterSamplesTable';
+import Navigation from '../components/Navigation';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
@@ -91,6 +92,7 @@ export default function GroundWaterSamples() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      <Navigation />
       <Card className="rounded-xl shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-gray-800">Ground Water Samples Database</CardTitle>

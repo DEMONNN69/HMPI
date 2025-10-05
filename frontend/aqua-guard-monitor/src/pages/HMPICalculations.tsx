@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import Navigation from '../components/Navigation';
 import { Loader2, Calculator, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 import { 
@@ -109,6 +110,7 @@ export default function HMPICalculations() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      <Navigation />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">HMPI Calculations</h1>

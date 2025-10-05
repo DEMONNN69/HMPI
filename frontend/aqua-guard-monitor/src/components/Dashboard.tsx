@@ -1,248 +1,414 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { StatsCard } from "@/components/StatsCard";
-import { QualityDistributionChart, HPIBarChart, HPITrendChart } from "@/components/charts/PollutionCharts";
-import { PollutionMap } from "@/components/PollutionMap";
-import { FileUpload } from "@/components/FileUpload";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/auth-context';
+import { StatsCard } from '@/components/StatsCard';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  LineChart,
+  Line,
+  ResponsiveContainer,
+  AreaChart,
+  Area
+} from 'recharts';
 import { 
   Droplets, 
   TrendingUp, 
-  AlertTriangle, 
-  ShieldCheck,
-  Upload,
+  MapPin, 
+  BarChart3,
+  Loader2,
   RefreshCw,
-  Download,
-  Settings,
-  Bell,
-  Activity,
-  Database
-} from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+  AlertTriangle
+} from 'lucide-react';
 
-// Professional mock data with realistic values
-const mockStats = {
-  totalSamples: 3842,
-  averageHPI: 34.7,
-  contaminatedSites: 89,
-  safeSites: 3198,
-  lastUpdate: "2024-01-15 09:42"
+interface MapStats {
+  total_samples: number;
+  average_hmpi: number;
+  quality_distribution: {
+    excellent: number;
+    good: number;
+    poor: number;
+    very_poor: number;
+    unsuitable: number;
+  };
+}
+
+interface MapDataPoint {
+  id: number;
+  latitude: number;
+  longitude: number;
+  hmpi_value: number;
+  quality_category: string;
+  location_name: string;
+  sample_date: string;
+}
+
+interface DashboardData {
+  data: MapDataPoint[];
+  stats: MapStats;
+}
+
+// Color schemes matching existing theme
+const QUALITY_COLORS = {
+  'Excellent': 'hsl(var(--excellent))',
+  'Good': 'hsl(var(--good))', 
+  'Poor': 'hsl(var(--poor))',
+  'Very Poor': 'hsl(var(--very-poor))',
+  'Unsuitable': 'hsl(var(--destructive))'
 };
 
-const qualityData = [
-  { name: "Excellent", value: 2156, color: "hsl(var(--excellent))" },
-  { name: "Good", value: 1042, color: "hsl(var(--good))" },
-  { name: "Fair", value: 455, color: "hsl(var(--poor))" },
-  { name: "Poor", value: 189, color: "hsl(var(--very-poor))" }
-];
+const Dashboard: React.FC = () => {
+  const { tokens, logout } = useAuth();
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-const trendData = [
-  { date: "Jan 8", average_hpi: 32.1, sample_count: 67 },
-  { date: "Jan 9", average_hpi: 35.8, sample_count: 74 },
-  { date: "Jan 10", average_hpi: 31.4, sample_count: 69 },
-  { date: "Jan 11", average_hpi: 38.2, sample_count: 82 },
-  { date: "Jan 12", average_hpi: 34.9, sample_count: 76 },
-  { date: "Jan 13", average_hpi: 33.1, sample_count: 71 },
-  { date: "Jan 14", average_hpi: 36.7, sample_count: 79 },
-  { date: "Jan 15", average_hpi: 34.7, sample_count: 84 }
-];
+  useEffect(() => {
+    if (tokens?.access) {
+      fetchDashboardData();
+    }
+  }, [tokens]);
 
-export function Dashboard() {
-  const [showUpload, setShowUpload] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const { toast } = useToast();
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1200));
-    setRefreshing(false);
-    
-    toast({
-      title: "System Updated",
-      description: "Latest monitoring data synchronized from field stations.",
-    });
-  };
-
-  const handleUploadComplete = (result: any) => {
-    if (result.success) {
-      toast({
-        title: "Data Processing Complete",
-        description: `Successfully integrated ${result.data.recordsProcessed} samples from ${result.data.filename}`,
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      if (!tokens?.access) {
+        throw new Error('No access token available');
+      }
+      
+      const response = await fetch('http://localhost:8000/api/v1/map-data/', {
+        headers: {
+          'Authorization': `Bearer ${tokens.access}`,
+          'Content-Type': 'application/json',
+        },
       });
-      setShowUpload(false);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      setDashboardData(result);
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch dashboard data');
+      console.error('Error fetching dashboard data:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getHPIStatus = (hpi: number) => {
-    if (hpi < 25) return { status: "Excellent", variant: "excellent" as const };
-    if (hpi < 50) return { status: "Good", variant: "good" as const };
-    if (hpi < 75) return { status: "Fair", variant: "poor" as const };
-    return { status: "Poor", variant: "very-poor" as const };
+  // Prepare data for charts using existing structure
+  const prepareQualityDistributionData = () => {
+    if (!dashboardData?.stats.quality_distribution) return [];
+    
+    return Object.entries(dashboardData.stats.quality_distribution).map(([key, value]) => ({
+      name: key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' '),
+      value: value,
+      color: QUALITY_COLORS[key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ') as keyof typeof QUALITY_COLORS]
+    }));
   };
 
-  const hpiStatus = getHPIStatus(mockStats.averageHPI);
+  const prepareHMPIRangeData = () => {
+    if (!dashboardData?.data) return [];
+    
+    const ranges = [
+      { name: '0-25\n(Excellent)', min: 0, max: 25, count: 0, color: QUALITY_COLORS.Excellent },
+      { name: '25-50\n(Good)', min: 25, max: 50, count: 0, color: QUALITY_COLORS.Good },
+      { name: '50-75\n(Poor)', min: 50, max: 75, count: 0, color: QUALITY_COLORS.Poor },
+      { name: '75-100\n(Very Poor)', min: 75, max: 100, count: 0, color: QUALITY_COLORS['Very Poor'] },
+      { name: '100+\n(Unsuitable)', min: 100, max: Infinity, count: 0, color: QUALITY_COLORS.Unsuitable },
+    ];
+
+    dashboardData.data.forEach((point: MapDataPoint) => {
+      const range = ranges.find(r => point.hmpi_value >= r.min && point.hmpi_value < r.max);
+      if (range) range.count++;
+    });
+
+    return ranges;
+  };
+
+  const getQualityCompliance = () => {
+    if (!dashboardData?.stats.quality_distribution) return 0;
+    const { excellent, good, poor, very_poor, unsuitable } = dashboardData.stats.quality_distribution;
+    const total = excellent + good + poor + very_poor + (unsuitable || 0);
+    return total > 0 ? Math.round(((excellent + good) / total) * 100) : 0;
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <Button variant="outline" onClick={() => logout()}>Logout</Button>
+        </div>
+        
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardHeader className="pb-3">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16 mb-2" />
+                <Skeleton className="h-4 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Water Quality Dashboard</h1>
+          <Button variant="outline" onClick={() => logout()}>Logout</Button>
+        </div>
+        
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between">
+            <span>Error Loading Dashboard: {error}</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={fetchDashboardData}
+              className="ml-4"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (!dashboardData) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Water Quality Dashboard</h1>
+        </div>
+        
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>No data available for dashboard</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  const qualityData = prepareQualityDistributionData();
+  const hmpiRangeData = prepareHMPIRangeData();
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Professional Header */}
-      <header className="bg-card border-b border-border/50 shadow-professional">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center justify-center w-9 h-9 bg-primary rounded-lg">
-                <Droplets className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-heading text-foreground">AQUA-GUARD</h1>
-                <p className="text-caption">Environmental Monitoring Platform</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-2 text-caption">
-                <Activity className="h-3 w-3 text-excellent" />
-                <span>Live Monitoring</span>
-              </div>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowUpload(!showUpload)}
-                className="text-sm"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Import Data
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="text-sm"
-              >
-                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                Sync
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-sm"
-                asChild
-              >
-                <Link to="/ground-water-samples">
-                  <Database className="h-4 w-4 mr-2" />
-                  Water Samples
-                </Link>
-              </Button>
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold gradient-text">Water Quality Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Monitor and analyze water quality indices across monitoring locations
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={fetchDashboardData}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Refresh
+          </Button>
+        </div>
+      </div>
 
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-sm"
-                asChild
-              >
-                <Link to="/hmpi-calculations">
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  HMPI Calculator
-                </Link>
-              </Button>
+      {/* Key Performance Indicators using existing StatsCard */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatsCard
+          title="Total Water Samples"
+          value={dashboardData.stats.total_samples}
+          icon={Droplets}
+          variant="default"
+          description="Active monitoring locations"
+        />
+        
+        <StatsCard
+          title="Average HMPI Score"
+          value={dashboardData.stats.average_hmpi.toFixed(1)}
+          icon={BarChart3}
+          variant={dashboardData.stats.average_hmpi < 25 ? "excellent" : 
+                   dashboardData.stats.average_hmpi < 50 ? "good" :
+                   dashboardData.stats.average_hmpi < 75 ? "poor" : "very-poor"}
+          description="Heavy Metal Pollution Index"
+        />
+        
+        <StatsCard
+          title="Monitoring Locations"
+          value={new Set(dashboardData.data.map((d: MapDataPoint) => d.location_name)).size}
+          icon={MapPin}
+          variant="default"
+          description="Unique sampling sites"
+        />
+        
+        <StatsCard
+          title="Quality Compliance"
+          value={`${getQualityCompliance()}%`}
+          icon={TrendingUp}
+          variant={getQualityCompliance() >= 75 ? "excellent" : 
+                   getQualityCompliance() >= 50 ? "good" :
+                   getQualityCompliance() >= 25 ? "poor" : "very-poor"}
+          description="Excellent + Good quality samples"
+        />
+      </div>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-sm"
-              >
-                <Bell className="h-4 w-4" />
-              </Button>
-            </div>
+      {/* Charts and Analysis using Tabs */}
+      <Tabs defaultValue="distribution" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="distribution">Quality Distribution</TabsTrigger>
+          <TabsTrigger value="ranges">HMPI Ranges</TabsTrigger>
+          <TabsTrigger value="breakdown">Detailed Breakdown</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="distribution" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Water Quality Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ChartContainer config={{}} className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={qualityData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }: { name: string; percent: number }) => 
+                          `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {qualityData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Quality Categories</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {Object.entries(dashboardData.stats.quality_distribution).map(([key, value]) => {
+                  const categoryName = key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ');
+                  const numericValue = typeof value === 'number' ? value : 0;
+                  const percentage = (numericValue / dashboardData.stats.total_samples) * 100;
+                  
+                  return (
+                    <div key={key} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: QUALITY_COLORS[categoryName as keyof typeof QUALITY_COLORS] }}
+                        />
+                        <span className="font-medium">{categoryName}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          {numericValue} samples
+                        </span>
+                        <Badge variant="outline">
+                          {percentage.toFixed(1)}%
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
           </div>
-        </div>
-      </header>
+        </TabsContent>
 
-      <main className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-        {/* Data Import Section */}
-        {showUpload && (
-          <div className="mb-8">
-            <FileUpload onUploadComplete={handleUploadComplete} />
-          </div>
-        )}
+        <TabsContent value="ranges" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>HMPI Score Distribution</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ChartContainer config={{}} className="h-[400px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={hmpiRangeData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="count" fill="hsl(var(--primary))" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="Total Monitoring Points"
-            value={mockStats.totalSamples.toLocaleString()}
-            icon={Droplets}
-            description="Active sample locations across network"
-            change={{ value: "12.3%", positive: true }}
-          />
-          <StatsCard
-            title="Heavy Metal Pollution Index"
-            value={mockStats.averageHPI}
-            icon={TrendingUp}
-            variant={hpiStatus.variant}
-            description={`Network average - ${hpiStatus.status} condition`}
-            change={{ value: "2.1", positive: false }}
-          />
-          <StatsCard
-            title="Attention Required"
-            value={mockStats.contaminatedSites}
-            icon={AlertTriangle}
-            variant="poor"
-            description="Sites exceeding threshold limits"
-            change={{ value: "8", positive: false }}
-          />
-          <StatsCard
-            title="Compliant Sites"
-            value={mockStats.safeSites}
-            icon={ShieldCheck}
-            variant="excellent"
-            description="Within regulatory parameters"
-            change={{ value: "127", positive: true }}
-          />
-        </div>
-
-        {/* Analytics Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <QualityDistributionChart data={qualityData} />
-          <HPIBarChart data={qualityData} />
-        </div>
-
-        {/* Temporal Analysis */}
-        <div className="mb-8">
-          <HPITrendChart data={trendData} />
-        </div>
-
-        {/* Geographic Overview */}
-        <PollutionMap />
-
-        {/* System Information */}
-        <div className="mt-8 pt-6 border-t border-border/50">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="space-y-1">
-              <div className="text-body text-foreground">
-                Last synchronized: {mockStats.lastUpdate} UTC
+        <TabsContent value="breakdown" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Detailed Quality Breakdown</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {Object.entries(dashboardData.stats.quality_distribution).map(([key, value]) => {
+                  const categoryName = key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ');
+                  const numericValue = typeof value === 'number' ? value : 0;
+                  const percentage = (numericValue / dashboardData.stats.total_samples) * 100;
+                  
+                  return (
+                    <StatsCard
+                      key={key}
+                      title={categoryName}
+                      value={numericValue}
+                      variant={key as any}
+                      description={`${percentage.toFixed(1)}% of total samples`}
+                    />
+                  );
+                })}
               </div>
-              <div className="text-caption">
-                Data source: National Environmental Monitoring Network • Quality assured dataset
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" className="text-sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export Analysis
-              </Button>
-              <Button variant="outline" size="sm" className="text-sm">
-                <Settings className="h-4 w-4 mr-2" />
-                Configure
-              </Button>
-            </div>
-          </div>
-        </div>
-      </main>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
-}
+};
+
+export default Dashboard;
