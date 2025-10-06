@@ -21,19 +21,31 @@ def get_map_data(request):
     """Optimized API endpoint for map visualization data"""
     
     # Get query parameters
-    limit = int(request.GET.get('limit', 500))
+    limit = request.GET.get('limit', 500)
     page = int(request.GET.get('page', 1))
     fields_param = request.GET.get('fields', 'basic')  # basic, full, minimal
+    year = request.GET.get('year', None)  # Filter by year if provided
     
-    # Limit the maximum number of records
-    limit = min(limit, 2000)
+    # Handle 'all' limit to get all data
+    if limit == 'all':
+        limit = None
+    else:
+        limit = int(limit)
+        # Limit the maximum number of records for paginated requests
+        limit = min(limit, 2000)
     
     # Base queryset - only essential fields for performance
     base_queryset = ComputedIndex.objects.filter(
         latitude__isnull=False,
         longitude__isnull=False,
         hpi_value__isnull=False
-    ).order_by('-computed_at')
+    )
+    
+    # Filter by year if provided
+    if year:
+        base_queryset = base_queryset.filter(calculation_year=year)
+        
+    base_queryset = base_queryset.order_by('-computed_at')
     
     # Select only needed fields based on request
     if fields_param == 'minimal':
@@ -55,13 +67,30 @@ def get_map_data(request):
             'computed_at', 'calculation_year'
         )
     
-    # Apply pagination
-    paginator = Paginator(queryset, limit)
-    page_obj = paginator.get_page(page)
+    # Apply pagination only if limit is not None
+    if limit is not None:
+        paginator = Paginator(queryset, limit)
+        page_obj = paginator.get_page(page)
+        data_list = page_obj.object_list
+        total_records = paginator.count
+        total_pages = paginator.num_pages
+        has_next = page_obj.has_next()
+        has_previous = page_obj.has_previous()
+        current_page = page
+        page_size = limit
+    else:
+        # Get all data without pagination
+        data_list = list(queryset)
+        total_records = len(data_list)
+        total_pages = 1
+        has_next = False
+        has_previous = False
+        current_page = 1
+        page_size = total_records
     
     # Convert to list and format data
     map_data = []
-    for item in page_obj.object_list:
+    for item in data_list:
         data_point = {
             'id': item['id'],
             'latitude': float(item['latitude']),
@@ -86,12 +115,13 @@ def get_map_data(request):
         
         map_data.append(data_point)
     
-    # Calculate statistics from current page data
+    # Calculate statistics from all data (not just current page)
     if map_data:
+        # For statistics, calculate from all data if we have all data, otherwise use current page
         total_samples = len(map_data)
         avg_hmpi = sum(point['hmpi_value'] for point in map_data) / total_samples
         
-        # Quality distribution for current page
+        # Quality distribution
         quality_dist = {'excellent': 0, 'good': 0, 'poor': 0, 'very_poor': 0, 'unsuitable': 0}
         for point in map_data:
             hmpi = point['hmpi_value']
@@ -120,12 +150,12 @@ def get_map_data(request):
             'quality_distribution': quality_dist
         },
         'pagination': {
-            'current_page': page,
-            'total_pages': paginator.num_pages,
-            'total_records': paginator.count,
-            'has_next': page_obj.has_next(),
-            'has_previous': page_obj.has_previous(),
-            'page_size': limit
+            'current_page': current_page,
+            'total_pages': total_pages,
+            'total_records': total_records,
+            'has_next': has_next,
+            'has_previous': has_previous,
+            'page_size': page_size
         }
     }
     

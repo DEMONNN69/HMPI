@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import { LatLngExpression } from 'leaflet';
 import { useAuth } from '@/lib/auth-context';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { groundWaterSampleApi } from '@/lib/api';
 import 'leaflet/dist/leaflet.css';
 
 interface MapDataPoint {
@@ -10,6 +12,12 @@ interface MapDataPoint {
   longitude: number;
   hmpi_value: number;
   location_name?: string;
+  year?: number;
+}
+
+interface SimpleMapProps {
+  selectedYear?: number | null;
+  onYearChange?: (year: number | null) => void;
 }
 
 const getColorByHMPI = (hmpiValue: number): string => {
@@ -20,11 +28,48 @@ const getColorByHMPI = (hmpiValue: number): string => {
   return '#D32F2F';                          // Unsuitable - Dark Red
 };
 
-const SimpleMap: React.FC = () => {
+const SimpleMap: React.FC<SimpleMapProps> = ({ selectedYear, onYearChange }) => {
   const [mapData, setMapData] = useState<MapDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
   const { tokens, isAuthenticated } = useAuth();
+
+  // Fetch available years
+  const fetchAvailableYears = async () => {
+    try {
+      const data = await groundWaterSampleApi.getGroundWaterSamples();
+      const samples = Array.isArray(data) ? data : data.results;
+      const years = new Set<number>();
+      
+      samples.forEach((sample: any) => {
+        if (sample.year && typeof sample.year === 'number') {
+          years.add(sample.year);
+        } else {
+          const dateFields = ['collection_date', 'date_collected', 'created_at', 'date'];
+          for (const field of dateFields) {
+            if (sample[field]) {
+              const year = new Date(sample[field]).getFullYear();
+              if (!isNaN(year)) {
+                years.add(year);
+                break;
+              }
+            }
+          }
+        }
+      });
+      
+      const sortedYears = Array.from(years).sort((a, b) => b - a);
+      setAvailableYears(sortedYears);
+      
+      // Set default year if none selected
+      if (!selectedYear && sortedYears.length > 0) {
+        onYearChange?.(sortedYears[0]);
+      }
+    } catch (err) {
+      console.error('Error fetching available years:', err);
+    }
+  };
 
   const fetchMapData = async () => {
     if (!tokens?.access) {
@@ -37,26 +82,33 @@ const SimpleMap: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(
-        'http://localhost:8000/api/v1/map-data/?page=1&limit=100&fields=basic', 
-        {
-          headers: {
-            'Authorization': `Bearer ${tokens.access}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      console.log('Fetching ALL map data for year:', selectedYear);
+      
+      let url = 'http://localhost:8000/api/v1/map-data/?limit=all&fields=basic';
+      if (selectedYear) {
+        url += `&year=${selectedYear}`;
+      }
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${tokens.access}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
+      console.log(`Loaded ${result.data.length} total samples from backend`);
+      
       const validData = result.data.filter(
         (point: MapDataPoint) => point.latitude && point.longitude && 
                 !isNaN(point.latitude) && !isNaN(point.longitude)
       );
       
+      console.log(`${validData.length} samples have valid coordinates`);
       setMapData(validData);
     } catch (err) {
       console.error('Error fetching map data:', err);
@@ -70,7 +122,11 @@ const SimpleMap: React.FC = () => {
     if (isAuthenticated && tokens?.access) {
       fetchMapData();
     }
-  }, [isAuthenticated, tokens?.access]);
+  }, [isAuthenticated, tokens?.access, selectedYear]); // Re-fetch when year changes
+
+  useEffect(() => {
+    fetchAvailableYears();
+  }, []);
 
   if (!isAuthenticated) {
     return (
@@ -83,7 +139,11 @@ const SimpleMap: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96 bg-gray-50 rounded-lg">
-        <p className="text-gray-600">Loading map data...</p>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading all water quality data...</p>
+          <p className="text-sm text-gray-500 mt-1">This may take a moment to load 15k+ samples</p>
+        </div>
       </div>
     );
   }
@@ -105,7 +165,31 @@ const SimpleMap: React.FC = () => {
   }
 
   return (
-    <div className="relative h-[600px] rounded-lg overflow-hidden border">
+    <div className="space-y-4">
+      {/* Year Selector */}
+      <div className="flex items-center space-x-4 p-4 bg-white rounded-lg shadow-sm border">
+        <label className="font-medium text-gray-700">Select Year:</label>
+        <select
+          value={selectedYear || ''}
+          onChange={(e) => onYearChange?.(e.target.value ? Number(e.target.value) : null)}
+          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">All Years</option>
+          {availableYears.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
+        {selectedYear && (
+          <span className="text-sm text-gray-600">
+            Showing data for {selectedYear}
+          </span>
+        )}
+      </div>
+
+      {/* Map Container */}
+      <div className="relative h-[600px] rounded-lg overflow-hidden border">
       {/* @ts-ignore */}
       <MapContainer
         center={[20.5937, 78.9629] as LatLngExpression}
@@ -165,8 +249,12 @@ const SimpleMap: React.FC = () => {
       {/* Data count indicator */}
       <div className="absolute top-4 right-4 z-[1000] bg-white rounded-lg shadow-lg p-2">
         <p className="text-xs text-gray-600">
-          📍 {mapData.length} water quality samples
+          📍 All {mapData.length.toLocaleString()} water quality samples
         </p>
+        <p className="text-xs text-green-600 font-medium">
+          ✓ Complete dataset loaded
+        </p>
+      </div>
       </div>
     </div>
   );

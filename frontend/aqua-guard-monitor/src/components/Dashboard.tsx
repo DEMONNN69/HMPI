@@ -90,7 +90,8 @@ const Dashboard: React.FC = () => {
         throw new Error('No access token available');
       }
       
-      const response = await fetch('http://localhost:8000/api/v1/map-data/', {
+      // Fetch ALL data for dashboard statistics
+      const response = await fetch('http://localhost:8000/api/v1/map-data/?limit=all&fields=basic', {
         headers: {
           'Authorization': `Bearer ${tokens.access}`,
           'Content-Type': 'application/json',
@@ -231,6 +232,16 @@ const Dashboard: React.FC = () => {
           <p className="text-muted-foreground mt-1">
             Monitor and analyze water quality indices across monitoring locations
           </p>
+          <div className="flex items-center gap-2 mt-2">
+            <Badge variant="secondary" className="text-xs">
+              📊 All {dashboardData.stats.total_samples.toLocaleString()} samples loaded
+            </Badge>
+            {dashboardData.pagination.total_records > dashboardData.stats.total_samples && (
+              <Badge variant="outline" className="text-xs text-orange-600">
+                ⚠️ Filtered view
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
           <Button 

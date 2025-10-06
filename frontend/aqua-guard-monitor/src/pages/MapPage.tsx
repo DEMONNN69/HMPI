@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import SimpleMap from '../components/SimpleMap';
+import HeatMap from '../components/HeatMap';
 import Navigation from '../components/Navigation';
 import { useAuth } from '../lib/auth-context';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -10,18 +11,19 @@ import {
   Map, 
   Globe, 
   Layers, 
-  Satellite,
+  Flame,
   MapPin,
   Activity,
   Shield,
   AlertTriangle
 } from 'lucide-react';
 
-type MapType = 'interactive' | 'pollution' | 'heatmap' | 'cluster';
+type MapType = 'interactive' | 'heatmap';
 
 const MapPage = () => {
   const { isAuthenticated, tokens } = useAuth();
   const [selectedMapType, setSelectedMapType] = useState<MapType>('interactive');
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
   const mapTypes = [
     {
@@ -29,14 +31,14 @@ const MapPage = () => {
       name: 'Interactive Map',
       description: 'Real-time data with clustering and popups',
       icon: Map,
-      component: <SimpleMap />
+      component: <SimpleMap selectedYear={selectedYear} onYearChange={setSelectedYear} />
     },
     {
-      id: 'cluster' as MapType,
-      name: 'Satellite View',
-      description: 'Satellite imagery with data points',
-      icon: Satellite,
-      component: <SimpleMap />
+      id: 'heatmap' as MapType,
+      name: 'Heat Map',
+      description: 'Density visualization of water quality data',
+      icon: Flame,
+      component: <HeatMap selectedYear={selectedYear} onYearChange={setSelectedYear} />
     }
   ];
 
@@ -72,7 +74,7 @@ const MapPage = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {mapTypes.map((mapType) => {
               const Icon = mapType.icon;
               const isActive = selectedMapType === mapType.id;
